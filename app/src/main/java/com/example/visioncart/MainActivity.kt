@@ -1,0 +1,163 @@
+package com.example.visioncart
+
+import android.app.Activity
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.Layout
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.visioncart.presentation.navigation.App
+import com.example.visioncart.ui.theme.VisionCartTheme
+import com.google.firebase.auth.FirebaseAuth
+import com.razorpay.Checkout
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
+import org.json.JSONObject
+import javax.inject.Inject
+
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+
+    @Inject
+    lateinit var firebaseAuth: FirebaseAuth
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            VisionCartTheme {
+                MainScreen(firebaseAuth = firebaseAuth, {payTest()})
+
+
+            }
+        }
+    }
+
+
+
+    @Composable
+    fun MainScreen(firebaseAuth: FirebaseAuth, payTest: () -> Unit) {
+
+        val showSplash = remember {
+            mutableStateOf(true)
+        }
+
+        LaunchedEffect(Unit) {
+            delay(3000)
+            showSplash.value = false
+        }
+
+        if (showSplash.value) {
+            MYSplashScreen()
+        }else {
+
+            App(firebaseAuth = firebaseAuth) { payTest() }
+        }
+    }
+
+    @Composable
+    fun MYSplashScreen() {
+
+        Box(
+            modifier = Modifier.fillMaxSize().background(color = Color.Blue),
+            contentAlignment = Alignment.Center
+        )  {
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+
+                Image(painter = painterResource(id = R.drawable.vision), contentDescription = "App Icon",
+                    modifier = Modifier.size(300.dp)
+                )
+
+                BasicText(
+                    text = "Welcome to the Clothing Store",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
+        }
+    }
+
+
+
+     fun payTest(
+
+     ) {
+
+        val activity: Activity = this
+         val checkout = Checkout()
+         checkout.setKeyID("rzp_test_SYLezA7Llsa2BX")
+
+        try {
+            val options = JSONObject()
+            options.put("name","VisionCart")
+            options.put("description","Order Payment")
+            //You can omit the image option to fetch the image from the Dashboard
+            options.put("image","https://example.com/image/rzp.jpg")
+            options.put("theme.color", "#3399cc");
+            options.put("currency","INR");
+//            options.put("order_id", "order_DBJOWzybf0sJbb");
+            options.put("amount","50000")//pass amount in currency subunits
+
+            val retryObj = JSONObject();
+            retryObj.put("enabled", true);
+            retryObj.put("max_count", 4);
+            options.put("retry", retryObj);
+
+            val prefill = JSONObject()
+            prefill.put("email","test@gmail.com")
+            prefill.put("contact","9999999999")
+
+            options.put("prefill",prefill)
+            checkout.open(activity,options)
+        }catch (e: Exception){
+            Toast.makeText(activity,"Error in payment: "+ e.message, Toast.LENGTH_LONG).show()
+            e.printStackTrace()
+        }
+    }
+
+    override fun onPaymentSuccess(paymentId: String?, data: PaymentData?) {
+
+        Toast.makeText(this, "Payment Success: $paymentId", Toast.LENGTH_LONG).show()
+    }
+
+    override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
+
+        Toast.makeText(this, "Payment Failed: $response", Toast.LENGTH_LONG).show()
+    }
+    }
+
+
+
